@@ -153,21 +153,29 @@ type FloraJson = Record<
 >
 export const processaFlora = (dwcJson: FloraJson): FloraJson => {
   return Object.fromEntries(
-    Object.entries(dwcJson).map(([id, taxon]) => {
+    Object.entries(dwcJson).reduce((entries, [id, taxon]) => {
       const distribution = taxon.distribution as Record<
         string,
         Record<string, string>
       >[]
-      if (!distribution) return [id, taxon]
-      taxon.distribution = {
-        origin: distribution[0]?.establishmentMeans,
-        Endemism: distribution[0]?.occurrenceRemarks.endemism,
-        phytogeographicDomains:
-          distribution[0]?.occurrenceRemarks.phytogeographicDomain,
-        occurrence: distribution.map(({ locationID }) => locationID).sort(),
-        vegetationType: (
-          taxon.speciesprofile as Record<string, Record<string, string>>[]
-        )?.[0]?.lifeForm?.vegetationType
+      if (
+        !['ESPECIE', 'VARIEDADE', 'FORMA', 'SUB_ESPECIE'].includes(
+          taxon.taxonRank as string
+        )
+      ) {
+        return entries
+      }
+      if (distribution) {
+        taxon.distribution = {
+          origin: distribution[0]?.establishmentMeans,
+          Endemism: distribution[0]?.occurrenceRemarks.endemism,
+          phytogeographicDomains:
+            distribution[0]?.occurrenceRemarks.phytogeographicDomain,
+          occurrence: distribution.map(({ locationID }) => locationID).sort(),
+          vegetationType: (
+            taxon.speciesprofile as Record<string, Record<string, string>>[]
+          )?.[0]?.lifeForm?.vegetationType
+        }
       }
 
       if (taxon.speciesprofile) {
@@ -178,8 +186,9 @@ export const processaFlora = (dwcJson: FloraJson): FloraJson => {
           .vegetationType
       }
 
-      return [id, taxon]
-    })
+      entries.push([id, taxon])
+      return entries
+    }, [] as [string, FloraJson[string]][])
   )
 }
 
@@ -195,3 +204,16 @@ export const processaFloraZip = async (url: string) => {
   const floraJson = processaFlora(json)
   return floraJson
 }
+
+async function main() {
+  if (Deno.args?.length === 0) {
+    return
+  }
+  const [url] = Deno.args
+  await Deno.writeTextFile(
+    'flora.json',
+    JSON.stringify(await processaFloraZip(url))
+  )
+}
+
+main()

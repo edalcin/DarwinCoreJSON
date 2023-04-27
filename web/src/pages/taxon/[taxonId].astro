@@ -1,0 +1,15 @@
+---
+import { getJson } from '../../lib/json'
+import Layout from '../../layouts/base.astro'
+import Taxon from '../../components/Taxon.astro'
+
+const json = await getJson()
+
+const { taxonId } = Astro.params as { taxonId: string }
+---
+
+<Layout title={`Taxon: ${json[taxonId]?.scientificName}`}>
+  <div class="flex flex-row justify-center bg-green-100">
+    <Taxon json={json[taxonId]} />
+  </div>
+</Layout>
