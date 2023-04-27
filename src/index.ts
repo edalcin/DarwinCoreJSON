@@ -170,6 +170,14 @@ export const processaFlora = (dwcJson: FloraJson): FloraJson => {
         )?.[0]?.lifeForm?.vegetationType
       }
 
+      if (taxon.speciesprofile) {
+        taxon.speciesprofile = (
+          taxon.speciesprofile as Record<string, unknown>[]
+        )[0]
+        delete (taxon.speciesprofile.lifeForm as Record<string, unknown>)
+          .vegetationType
+      }
+
       return [id, taxon]
     })
   )
