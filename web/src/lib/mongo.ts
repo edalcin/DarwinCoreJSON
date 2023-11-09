@@ -61,7 +61,23 @@ export async function countTaxa(filter: Record<string, unknown> = {}) {
   return await taxa.countDocuments(filter)
 }
 
-export async function getTaxon(id: string) {
+export async function getTaxon(id: string, includeOccurrences = false) {
   const taxa = await getCollection('dwc2json', 'taxa')
-  return await taxa.findOne({ taxonID: id })
+  return includeOccurrences
+    ? (
+        await taxa
+          .aggregate([
+            { $match: { taxonID: id } },
+            {
+              $lookup: {
+                from: 'ocorrencias',
+                localField: 'scientificName',
+                foreignField: 'scientificName',
+                as: 'occurrences'
+              }
+            }
+          ])
+          .toArray()
+      )[0]
+    : taxa.findOne({ taxonID: id })
 }
