@@ -4,7 +4,7 @@ import Layout from '../../layouts/base.astro'
 import { getTaxon } from '../../lib/mongo'
 
 const { taxonId } = Astro.params as { taxonId: string }
-const taxon = await getTaxon(taxonId)
+const taxon = await getTaxon(taxonId, true)
 ---
 
 <Layout

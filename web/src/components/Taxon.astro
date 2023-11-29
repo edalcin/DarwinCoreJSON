@@ -15,11 +15,93 @@ const { json } = Astro.props as {
     reference: RU[]
     othernames: RU[]
     vernacularname: R<string>[]
+    occurrences?: R<string>[]
+    groupedOccurrences?: {
+      country: string
+      states: {
+        state: string
+        municipalities: {
+          municipality: string
+          localities: R<string | undefined>[]
+        }[]
+      }[]
+    }[]
   }
+}
+
+if (json.occurrences) {
+  json.groupedOccurrences = json.occurrences
+    .sort(
+      (a, b) =>
+        (a.country?.localeCompare(b.country ?? '') ?? 0) ||
+        (a.stateProvince?.localeCompare(b.stateProvince ?? '') ?? 0) ||
+        (a.municipality?.localeCompare(b.municipality ?? '') ?? 0) ||
+        (a.locality?.localeCompare(b.locality ?? '') ?? 0)
+    )
+    .reduce(
+      (acc, { country, stateProvince, municipality, locality, ...rest }) => {
+        if (locality) locality = locality.replace(/[ .]*$/, '')
+        if (acc.at(-1)?.country !== country) {
+          acc.push({
+            country: country ?? '??',
+            states: [
+              {
+                state: stateProvince ?? '',
+                municipalities: [
+                  {
+                    municipality: municipality ?? '',
+                    localities: [{ locality, ...rest }]
+                  }
+                ]
+              }
+            ]
+          })
+        } else if (acc.at(-1)?.states.at(-1)?.state !== stateProvince) {
+          acc.at(-1)?.states.push({
+            state: stateProvince ?? '',
+            municipalities: [
+              {
+                municipality: municipality ?? '',
+                localities: [{ locality, ...rest }]
+              }
+            ]
+          })
+        } else if (
+          acc.at(-1)?.states.at(-1)?.municipalities.at(-1)?.municipality !==
+          municipality
+        ) {
+          acc
+            .at(-1)
+            ?.states.at(-1)
+            ?.municipalities.push({
+              municipality: municipality ?? '',
+              localities: [{ locality, ...rest }]
+            })
+        } else if (locality) {
+          acc
+            .at(-1)
+            ?.states.at(-1)
+            ?.municipalities.at(-1)
+            ?.localities.push({ locality, ...rest })
+        }
+        return acc
+      },
+      [] as {
+        country: string
+        states: {
+          state: string
+          municipalities: {
+            municipality: string
+            localities: R<string | undefined>[]
+          }[]
+        }[]
+      }[]
+    )
 }
 import Map from './Map.astro'
 import Section from './Section.astro'
 import TaxonLink from './TaxonLink.astro'
+console.log(json.occurrences)
 ---
 
 <div
@@ -124,6 +206,65 @@ import TaxonLink from './TaxonLink.astro'
               </li>
             ))}
         </ul>
+      </>
+    )
+  }
+  {
+    json.groupedOccurrences && (
+      <>
+        <h2 class="pt-2 font-bold">Ocorrências ({json.occurrences?.length})</h2>
+
+        {json.groupedOccurrences.map(({ country, states }) => (
+          <div class="flex flex-col">
+            <div class="font-bold">{country}</div>
+            <ul class="list-disc pl-5">
+              {states.map(({ state, municipalities }) => (
+                <li>
+                  <div class="flex flex-col">
+                    <div>{state}</div>
+                    <ul class="list-[circle] pl-5">
+                      {municipalities.map(({ municipality, localities }) => (
+                        <li>
+                          <div class="flex flex-col">
+                            <div>{municipality}</div>
+                            {localities?.length > 0 && localities[0] && (
+                              <ul class="list-[square] pl-5">
+                                {localities.map((info) => (
+                                  <li>
+                                    <div class="flex flex-col gap-1">
+                                      <div>
+                                        {`${info.institutionCode}/${info.collectionCode}`}
+                                        -
+                                        {[info.day, info.month, info.year]
+                                          .filter(Boolean)
+                                          .join('/')}{' '}
+                                        - {info.recordedBy}
+                                      </div>
+                                      {(info.occurrenceRemarks ||
+                                        json.fieldNotes) && (
+                                        <div class="bg-slate-100 rounded px-2">
+                                          {info.fieldNotes ||
+                                            info.occurrenceRemarks}
+                                        </div>
+                                      )}
+                                      {info.locality && (
+                                        <div>{info.locality}</div>
+                                      )}
+                                    </div>
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
       </>
     )
   }
